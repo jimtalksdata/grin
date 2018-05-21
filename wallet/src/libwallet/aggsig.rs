@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 /// Aggsig library definitions
-
 use std::collections::HashMap;
 
-use util::secp::key::{PublicKey, SecretKey};
-use util::secp::{self, aggsig, Message, Secp256k1, Signature};
-use util::secp::pedersen::Commitment;
-use util::kernel_sig_msg;
-use uuid::Uuid;
 use keychain::Keychain;
-use keychain::extkey::Identifier;
 use keychain::blind::BlindingFactor;
+use keychain::extkey::Identifier;
 use libwallet::error::Error;
+use util::kernel_sig_msg;
+use util::secp::key::{PublicKey, SecretKey};
+use util::secp::pedersen::Commitment;
+use util::secp::{self, aggsig, Message, Secp256k1, Signature};
+use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 /// Holds the context for a single aggsig transaction
@@ -44,8 +43,8 @@ pub struct Context {
 }
 
 #[derive(Clone, Debug)]
-/// Holds many contexts, to support multiple transactions hitting a wallet receiver
-/// at once
+/// Holds many contexts, to support multiple transactions hitting a wallet
+/// receiver at once
 pub struct ContextManager {
 	contexts: HashMap<Uuid, Context>,
 }
@@ -118,9 +117,10 @@ impl Context {
 		)
 	}
 
-	/// Note 'secnonce' here is used to perform the signature, while 'pubnonce' just allows you to
-	/// provide a custom public nonce to include while calculating e
-	/// nonce_sum is the sum used to decide whether secnonce should be inverted during sig time
+	/// Note 'secnonce' here is used to perform the signature, while 'pubnonce'
+	/// just allows you to provide a custom public nonce to include while
+	/// calculating e nonce_sum is the sum used to decide whether secnonce
+	/// should be inverted during sig time
 	pub fn sign_single(
 		&self,
 		secp: &Secp256k1,

@@ -13,18 +13,18 @@
 // limitations under the License.
 
 //! Transactions
+use std::cmp::Ordering;
+use std::cmp::max;
+use std::collections::HashSet;
+use std::{error, fmt};
+use util::secp::pedersen::{Commitment, RangeProof};
 use util::secp::{self, Message, Signature};
 use util::{kernel_sig_msg, static_secp_instance};
-use util::secp::pedersen::{Commitment, RangeProof};
-use std::collections::HashSet;
-use std::cmp::max;
-use std::cmp::Ordering;
-use std::{error, fmt};
 
 use consensus;
 use consensus::VerifySortOrder;
-use core::{Committed, MerkleProof};
 use core::hash::{Hash, Hashed, ZERO_HASH};
+use core::{Committed, MerkleProof};
 use keychain;
 use keychain::BlindingFactor;
 use ser::{self, read_and_verify_sorted, PMMRable, Readable, Reader, Writeable, WriteableSorted,
@@ -389,8 +389,9 @@ impl Transaction {
 
 	/// To verify transaction kernels we check that -
 	///  * all kernels have an even fee
-	///  * sum of input/output commitments matches sum of kernel commitments after applying offset
-	///  * each kernel sig is valid (i.e. tx commitments sum to zero, given above is true)
+	/// * sum of input/output commitments matches sum of kernel commitments
+	/// after applying offset * each kernel sig is valid (i.e. tx commitments
+	/// sum to zero, given above is true)
 	fn verify_kernels(&self) -> Result<(), Error> {
 		// Verify all the output rangeproofs.
 		// Note: this is expensive.
@@ -667,7 +668,8 @@ pub struct Input {
 	/// Currently we only care about this for coinbase outputs.
 	pub block_hash: Option<Hash>,
 	/// The Merkle Proof that shows the output being spent by this input
-	/// existed and was unspent at the time of this block (proof of inclusion in output_root)
+	/// existed and was unspent at the time of this block (proof of inclusion
+	/// in output_root)
 	pub merkle_proof: Option<MerkleProof>,
 }
 
@@ -724,9 +726,9 @@ impl Readable for Input {
 }
 
 /// The input for a transaction, which spends a pre-existing unspent output.
-/// The input commitment is a reproduction of the commitment of the output being spent.
-/// Input must also provide the original output features and the hash of the block
-/// the output originated from.
+/// The input commitment is a reproduction of the commitment of the output
+/// being spent. Input must also provide the original output features and the
+/// hash of the block the output originated from.
 impl Input {
 	/// Build a new input from the data required to identify and verify an
 	/// output being spent.
@@ -744,9 +746,10 @@ impl Input {
 		}
 	}
 
-	/// The input commitment which _partially_ identifies the output being spent.
-	/// In the presence of a fork we need additional info to uniquely identify the output.
-	/// Specifically the block hash (to correctly calculate lock_height for coinbase outputs).
+	/// The input commitment which _partially_ identifies the output being
+	/// spent. In the presence of a fork we need additional info to uniquely
+	/// identify the output. Specifically the block hash (to correctly
+	/// calculate lock_height for coinbase outputs).
 	pub fn commitment(&self) -> Commitment {
 		self.commit.clone()
 	}
@@ -758,9 +761,10 @@ impl Input {
 		block_hash.unwrap_or(Hash::default())
 	}
 
-	/// Convenience function to return the (optional) merkle_proof for this input.
-	/// Will return the "empty" Merkle proof if we do not have one.
-	/// We currently only care about the Merkle proof for inputs spending coinbase outputs.
+	/// Convenience function to return the (optional) merkle_proof for this
+	/// input. Will return the "empty" Merkle proof if we do not have one.
+	/// We currently only care about the Merkle proof for inputs spending
+	/// coinbase outputs.
 	pub fn merkle_proof(&self) -> MerkleProof {
 		let proof = self.merkle_proof.clone();
 		proof.unwrap_or(MerkleProof::empty())
@@ -865,7 +869,8 @@ impl Output {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct OutputIdentifier {
 	/// Output features (coinbase vs. regular transaction output)
-	/// We need to include this when hashing to ensure coinbase maturity can be enforced.
+	/// We need to include this when hashing to ensure coinbase maturity can be
+	/// enforced.
 	pub features: OutputFeatures,
 	/// Output commitment
 	pub commit: Commitment,

@@ -35,16 +35,37 @@ pub struct Context {
 	/// (basically a SecretKey)
 	pub sec_nonce: SecretKey,
 	/// If I'm the sender, store change key
+	/// TODO: remove in favor of outputs below
 	pub change_key: Option<Identifier>,
 	/// store my outputs between invocations
 	pub output_ids: Vec<Identifier>,
+	/// store my inputs
+	pub input_ids: Vec<Identifier>,
 	/// store the calculated fee
 	pub fee: u64,
 }
 
+/*impl Context {
+	/// Create a new context with defaults
+	pub fn new(
+		secp: &secp::Secp256k1,
+		sec_key: SecretKey,
+	) -> Context {
+		Context {
+			sec_key: sec_key,
+			sec_nonce: aggsig::export_secnonce_single(secp).unwrap(),
+			change_key: None,
+			input_ids: vec![],
+			output_ids: vec![],
+			fee: 0,
+		},
+}*/
+
 #[derive(Clone, Debug)]
 /// Holds many contexts, to support multiple transactions hitting a wallet
 /// receiver at once
+/// TODO: Remove context manager in favour of context.. keeping multiple
+/// transactions separate is a wallet-specific concern
 pub struct ContextManager {
 	contexts: HashMap<Uuid, Context>,
 }
@@ -73,6 +94,7 @@ impl ContextManager {
 					transaction_id: transaction_id.clone(),
 					sec_nonce: aggsig::export_secnonce_single(secp).unwrap(),
 					change_key: None,
+					input_ids: vec![],
 					output_ids: vec![],
 					fee: 0,
 				},
@@ -102,6 +124,17 @@ impl Context {
 	/// Returns all stored outputs
 	pub fn get_outputs(&self) -> Vec<Identifier> {
 		self.output_ids.clone()
+	}
+
+	/// Tracks IDs of my inputs into the transaction
+	/// be kept between invocations
+	pub fn add_input(&mut self, input_id: &Identifier) {
+		self.input_ids.push(input_id.clone());
+	}
+
+	/// Returns all stored input identifiers
+	pub fn get_inputs(&self) -> Vec<Identifier> {
+		self.input_ids.clone()
 	}
 
 	/// Returns private key, private nonce
@@ -164,6 +197,7 @@ impl Context {
 		verify_single(secp, sig, &msg, Some(&nonce_sum), pubkey, true)
 	}
 
+	///TODO: Remove when below is integrated
 	pub fn calculate_partial_sig(
 		&self,
 		secp: &Secp256k1,
@@ -187,19 +221,36 @@ impl Context {
 		)
 	}
 
+	pub fn calculate_partial_sig_with_nonce_sum(
+		&self,
+		secp: &Secp256k1,
+		nonce_sum: &PublicKey,
+		fee: u64,
+		lock_height: u64,
+	) -> Result<Signature, Error> {
+		// Add public nonces kR*G + kS*G
+		let (_, sec_nonce) = self.get_private_keys();
+		let msg = secp::Message::from_slice(&kernel_sig_msg(fee, lock_height))?;
+
+		//Now calculate signature using message M=fee, nonce in e=nonce_sum
+		self.sign_single(
+			secp,
+			&msg,
+			Some(&sec_nonce),
+			Some(&nonce_sum),
+			Some(&nonce_sum),
+		)
+	}
+
 	/// Helper function to calculate final signature
 	pub fn calculate_final_sig(
 		&self,
 		secp: &Secp256k1,
-		their_sig: &Signature,
-		our_sig: &Signature,
-		their_pub_nonce: &PublicKey,
+		part_sigs: Vec<&Signature>,
+		nonce_sum: &PublicKey,
 	) -> Result<Signature, Error> {
 		// Add public nonces kR*G + kS*G
-		let (_, sec_nonce) = self.get_private_keys();
-		let mut nonce_sum = their_pub_nonce.clone();
-		let _ = nonce_sum.add_exp_assign(secp, &sec_nonce);
-		let sig = aggsig::add_signatures_single(&secp, their_sig, our_sig, &nonce_sum)?;
+		let sig = aggsig::add_signatures_single(&secp, part_sigs, &nonce_sum)?;
 		Ok(sig)
 	}
 
@@ -217,6 +268,19 @@ impl Context {
 }
 
 // Contextless functions
+
+/// Verifies a partial sig given all public nonces used in the round
+pub fn verify_partial_sig(
+	secp: &Secp256k1,
+	sig: &Signature,
+	pub_nonce_sum: &PublicKey,
+	pubkey: &PublicKey,
+	fee: u64,
+	lock_height: u64,
+) -> bool {
+	let msg = secp::Message::from_slice(&kernel_sig_msg(fee, lock_height)).unwrap();
+	verify_single(secp, sig, &msg, Some(&pub_nonce_sum), pubkey, true)
+}
 
 /// Just a simple sig, creates its own nonce, etc
 pub fn sign_from_key_id(
@@ -237,10 +301,21 @@ pub fn verify_single_from_commit(
 	msg: &Message,
 	commit: &Commitment,
 ) -> bool {
-	// Extract the pubkey, unfortunately we need this hack for now, (we just hope
-	// one is valid) TODO: Create better secp256k1 API to do this
+	// Extract the pubkey
 	let pubkey = commit.to_pubkey(secp).unwrap();
 	aggsig::verify_single(secp, &sig, &msg, None, &pubkey, false)
+}
+
+/// Verify a sig, with built message
+pub fn verify_sig_build_msg(
+	secp: &Secp256k1,
+	sig: &Signature,
+	pubkey: &PublicKey,
+	fee: u64,
+	lock_height: u64,
+) -> bool {
+	let msg = secp::Message::from_slice(&kernel_sig_msg(fee, lock_height)).unwrap();
+	verify_single(secp, sig, &msg, None, pubkey, true)
 }
 
 //Verifies an aggsig signature
@@ -253,6 +328,17 @@ pub fn verify_single(
 	is_partial: bool,
 ) -> bool {
 	aggsig::verify_single(secp, sig, msg, pubnonce, pubkey, is_partial)
+}
+
+/// Adds signatures
+pub fn add_signatures(
+	secp: &Secp256k1,
+	part_sigs: Vec<&Signature>,
+	nonce_sum: &PublicKey,
+) -> Result<Signature, Error> {
+	// Add public nonces kR*G + kS*G
+	let sig = aggsig::add_signatures_single(&secp, part_sigs, &nonce_sum)?;
+	Ok(sig)
 }
 
 /// Just a simple sig, creates its own nonce, etc

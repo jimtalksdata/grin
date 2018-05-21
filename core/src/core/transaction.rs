@@ -23,8 +23,8 @@ use util::{kernel_sig_msg, static_secp_instance};
 
 use consensus;
 use consensus::VerifySortOrder;
-use core::hash::{Hash, Hashed, ZERO_HASH};
 use core::{Committed, MerkleProof};
+use core::hash::{Hash, Hashed, ZERO_HASH};
 use keychain;
 use keychain::BlindingFactor;
 use ser::{self, read_and_verify_sorted, PMMRable, Readable, Reader, Writeable, WriteableSorted,
@@ -184,7 +184,7 @@ impl TxKernel {
 		let sig = &self.excess_sig;
 		// Verify aggsig directly in libsecp
 		let pubkey = &self.excess.to_pubkey(&secp)?;
-		if !secp::aggsig::verify_single(&secp, &sig, &msg, None, pubkey, false) {
+		if !secp::aggsig::verify_single(&secp, &sig, &msg, None, &pubkey, false) {
 			return Err(secp::Error::IncorrectSignature);
 		}
 		Ok(())
@@ -766,8 +766,8 @@ impl Input {
 	/// We currently only care about the Merkle proof for inputs spending
 	/// coinbase outputs.
 	pub fn merkle_proof(&self) -> MerkleProof {
-		let proof = self.merkle_proof.clone();
-		proof.unwrap_or(MerkleProof::empty())
+		let merkle_proof = self.merkle_proof.clone();
+		merkle_proof.unwrap_or(MerkleProof::empty())
 	}
 }
 

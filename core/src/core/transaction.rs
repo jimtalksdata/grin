@@ -183,15 +183,8 @@ impl TxKernel {
 		let secp = secp.lock().unwrap();
 		let sig = &self.excess_sig;
 		// Verify aggsig directly in libsecp
-		let pubkeys = &self.excess.to_two_pubkeys(&secp);
-		let mut valid = false;
-		for i in 0..pubkeys.len() {
-			valid = secp::aggsig::verify_single(&secp, &sig, &msg, None, &pubkeys[i], false);
-			if valid {
-				break;
-			}
-		}
-		if !valid {
+		let pubkey = &self.excess.to_pubkey(&secp)?;
+		if !secp::aggsig::verify_single(&secp, &sig, &msg, None, pubkey, false) {
 			return Err(secp::Error::IncorrectSignature);
 		}
 		Ok(())

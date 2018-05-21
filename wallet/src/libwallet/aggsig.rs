@@ -239,15 +239,8 @@ pub fn verify_single_from_commit(
 ) -> bool {
 	// Extract the pubkey, unfortunately we need this hack for now, (we just hope
 	// one is valid) TODO: Create better secp256k1 API to do this
-	let pubkeys = commit.to_two_pubkeys(secp);
-	let mut valid = false;
-	for i in 0..pubkeys.len() {
-		valid = aggsig::verify_single(secp, &sig, &msg, None, &pubkeys[i], false);
-		if valid {
-			break;
-		}
-	}
-	valid
+	let pubkey = commit.to_pubkey(secp).unwrap();
+	aggsig::verify_single(secp, &sig, &msg, None, &pubkey, false)
 }
 
 //Verifies an aggsig signature

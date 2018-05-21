@@ -23,8 +23,8 @@ use util::{kernel_sig_msg, static_secp_instance};
 
 use consensus;
 use consensus::VerifySortOrder;
-use core::{Committed, MerkleProof};
 use core::hash::{Hash, Hashed, ZERO_HASH};
+use core::{Committed, MerkleProof};
 use keychain;
 use keychain::BlindingFactor;
 use ser::{self, read_and_verify_sorted, PMMRable, Readable, Reader, Writeable, WriteableSorted,

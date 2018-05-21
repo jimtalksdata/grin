@@ -33,8 +33,8 @@ use tokio_retry::strategy::FibonacciBackoff;
 use failure::{Backtrace, Context, Fail, ResultExt};
 
 use core::consensus;
-use core::core::{MerkleProof, Transaction};
 use core::core::hash::Hash;
+use core::core::{MerkleProof, Transaction};
 use keychain;
 use util;
 use util::LOGGER;

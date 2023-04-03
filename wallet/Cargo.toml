@@ -35,4 +35,4 @@ grin_util = { path = "../util" }
 
 [dev-dependencies]
 grin_chain = { path = "../chain" }
-time = "0.1"
+time = "0.2"

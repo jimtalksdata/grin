@@ -19,4 +19,4 @@ grin_core = { path = "../core" }
 grin_util = { path = "../util" }
 
 [dev-dependencies]
-time = "0.1"
+time = "0.2"
